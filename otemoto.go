@@ -1,4 +1,4 @@
-package gozaru
+package otemoto
 
 import (
 	"bytes"

@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ikawaha/gozaru"
+	"github.com/ikawaha/otemoto"
 )
 
 func init() {
@@ -25,14 +25,14 @@ const (
 )
 
 var (
-	schedule = gozaru.TimeTable{
+	schedule = otemoto.TimeTable{
 		{Hour: 15, Minute: 0, Message: ":coffee: おやつの時間〜"},
 		{Hour: 18, Minute: 30, Message: ":octocat: もう帰ろうよー"},
 	}
 )
 
-func Run(bot *gozaru.Bot, notify <-chan struct{}, done chan<- struct{}) {
-	msgch := make(chan gozaru.Message, 1)
+func Run(bot *otemoto.Bot, notify <-chan struct{}, done chan<- struct{}) {
+	msgch := make(chan otemoto.Message, 1)
 	errch := make(chan error, 1)
 	go func() {
 		for {
@@ -74,7 +74,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	bot, err := gozaru.New(os.Args[1], schedule)
+	bot, err := otemoto.New(os.Args[1], schedule)
 	if err != nil {
 		log.Fatal(err)
 	}
