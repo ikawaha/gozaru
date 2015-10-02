@@ -1,1 +1,3 @@
-# gozaru
+# otemoto
+
+Tiny slack bot sample.
