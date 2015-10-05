@@ -56,7 +56,7 @@ loop:
 			if msg.Type != "message" || msg.SubType != "" {
 				continue
 			}
-			if bot.ID == msg.MentionID() {
+			if _, im := bot.Ims[msg.Channel]; bot.ID == msg.MentionID() || im {
 				go bot.Tokenize(msg)
 			}
 			go bot.Dajarep(msg, sleep)
