@@ -26,6 +26,7 @@ const (
 
 var (
 	schedule = otemoto.TimeTable{
+		{Hour: 12, Minute: 0, Message: "お昼ですよ！"},
 		{Hour: 15, Minute: 0, Message: ":coffee: おやつの時間〜"},
 		{Hour: 18, Minute: 30, Message: ":octocat: もう帰ろうよー"},
 	}
@@ -59,6 +60,7 @@ func Run(token string, schedule otemoto.TimeTable, notify <-chan struct{}, done 
 		}
 	}(quit)
 	heartbeat := bot.Heartbeat(30*time.Second, 60*time.Second)
+	scheduleTimer := time.Tick(interval)
 	for {
 		select {
 		case msg := <-msgch:
@@ -73,7 +75,7 @@ func Run(token string, schedule otemoto.TimeTable, notify <-chan struct{}, done 
 			go bot.Haiku(msg, sleep)
 		case err := <-errch:
 			log.Printf("receive error, %v", err)
-		case <-time.Tick(interval):
+		case <-scheduleTimer:
 			go bot.CheckSchedule()
 		case err := <-heartbeat:
 			log.Printf("receive heartbeat, %v", err)
