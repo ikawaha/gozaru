@@ -21,7 +21,7 @@ func init() {
 
 const (
 	sleep    = 5 * time.Second
-	interval = 5 * time.Second
+	interval = 1 * time.Minute
 )
 
 var (
@@ -31,26 +31,36 @@ var (
 	}
 )
 
-func Run(bot *otemoto.Bot, notify <-chan struct{}, done chan<- struct{}) {
+func Run(token string, schedule otemoto.TimeTable, notify <-chan struct{}, done chan<- error) {
+	bot, err := otemoto.New(token, schedule)
+	if err != nil {
+		time.Sleep(1 * time.Minute)
+		done <- err
+		return
+	}
+	defer bot.Close()
+	fmt.Println("^C exits\n")
+
 	msgch := make(chan otemoto.Message, 1)
 	errch := make(chan error, 1)
-	go func() {
+	quit := make(chan struct{}, 1)
+	go func(q chan struct{}) {
 		for {
-			msg, err := bot.GetMessage()
-			if err != nil {
-				errch <- err
+			select {
+			case <-q:
+				return
+			default:
+				msg, err := bot.GetMessage()
+				if err != nil {
+					errch <- err
+				}
+				msgch <- msg
 			}
-			msgch <- msg
 		}
-	}()
-loop:
+	}(quit)
+	heartbeat := bot.Heartbeat(30*time.Second, 60*time.Second)
 	for {
 		select {
-		case <-notify:
-			log.Println("slackbot, receive exit message...")
-			break loop
-		case err := <-errch:
-			log.Printf("receive error, %v", err)
 		case msg := <-msgch:
 			log.Printf("bot_id: %v, msguser_id: %v, msg:%+v\n", bot.ID, msg.UserID, msg)
 			if msg.Type != "message" || msg.SubType != "" {
@@ -61,11 +71,22 @@ loop:
 			}
 			go bot.Dajarep(msg, sleep)
 			go bot.Haiku(msg, sleep)
+		case err := <-errch:
+			log.Printf("receive error, %v", err)
 		case <-time.Tick(interval):
 			go bot.CheckSchedule()
+		case err := <-heartbeat:
+			log.Printf("receive heartbeat, %v", err)
+			quit <- struct{}{}
+			done <- err
+			return
+		case <-notify:
+			log.Println("slackbot, receive exit message...")
+			quit <- struct{}{}
+			done <- nil
+			return
 		}
 	}
-	done <- struct{}{}
 }
 
 func main() {
@@ -74,28 +95,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	bot, err := otemoto.New(os.Args[1], schedule)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer bot.Close()
-	fmt.Println("^C exits\n")
-
 	sys := make(chan os.Signal, 1)
 	signal.Notify(sys, syscall.SIGINT)
-	exit := make(chan struct{}, 1)
-	done := make(chan struct{}, 1)
+	quit := make(chan struct{}, 1)
+	done := make(chan error, 1)
 
-	go Run(bot, exit, done) // slack event loop
+	token := os.Args[1]
+	go Run(token, schedule, quit, done) // slack event loop
 loop:
 	for {
 		select {
 		case <-sys:
 			log.Println("received ^C ...")
-			exit <- struct{}{}
-			break loop
+			quit <- struct{}{}
+		case err := <-done:
+			if err == nil {
+				break loop
+			}
+			go Run(token, schedule, quit, done)
 		}
 	}
-	<-done
 	log.Println("done")
 }
