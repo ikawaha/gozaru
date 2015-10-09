@@ -26,7 +26,6 @@ var (
 type TimeTable []struct {
 	Hour, Minute int
 	Message      string
-	notified     bool
 }
 
 type Bot struct {
@@ -115,8 +114,7 @@ func (b *Bot) CheckSchedule() {
 	h, m, _ := time.Now().Clock()
 	for i := 0; i < len(b.schedule); i++ {
 		s := &b.schedule[i]
-		if !s.notified && h == s.Hour && m == s.Minute {
-			s.notified = true
+		if h == s.Hour && m == s.Minute {
 			for c := range b.Channels {
 				go b.PostMessage(Message{
 					slackbot.Message{
@@ -127,9 +125,6 @@ func (b *Bot) CheckSchedule() {
 					},
 				})
 			}
-		}
-		if s.notified && m != s.Minute {
-			s.notified = false
 		}
 	}
 }
